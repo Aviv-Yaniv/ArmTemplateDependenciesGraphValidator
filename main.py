@@ -6,6 +6,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import re
 
+from check import check
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -71,23 +73,42 @@ def filter_by_type(G, types_filter):
                 G.remove_node(x)
                 break
 
-def create_color_map(G, resource_to_type):
+def get_error_node(type, tuples):
+    for t in tuples:
+        if type == t[0]:
+            return t
+    return None
+
+def create_color_map(G, resource_to_type, errorNodes, labels):
     color_map = []
     type_color = defaultdict()
     for resource_name in G:
         resource_type = resource_to_type[resource_name]
         if resource_type not in type_color:
             type_color[resource_type] = get_random_color()
-        color_map.append(type_color[resource_type])
+
+        errorNode = get_error_node(resource_name, errorNodes)
+        if errorNode != None:
+            color_map.append('red')
+            labels[resource_name] = f'\n\nError: {errorNode[1]}'
+        else:
+            color_map.append(type_color[resource_type])
     return color_map
 
-def draw_graph_to_file(G, color_map, filename, output_extension = None):
+
+def generate_labels(G, error_nodes):
+    labeldict = {}
+    labeldict["Node1"] = "shopkeeper"
+    labeldict["Node2"] = "angry man with parrot"
+    return labeldict
+
+def draw_graph_to_file(G, color_map, filename, labels, output_extension = None):
     plt.clf()
     plt.figure(5, figsize=(30, 30))
     pos = nx.fruchterman_reingold_layout(G)
     nx.draw_networkx_nodes(G, pos, cmap=plt.get_cmap('jet'), node_size=500)
     nx.draw_networkx_labels(G, pos)
-    nx.draw(G, pos=pos, node_size=[v * 1000 for v in dict(G.degree).values()], node_color=color_map)
+    nx.draw(G, pos=pos, node_size=[v * 1000 for v in dict(G.degree).values()], node_color=color_map, labels=labels, with_labels = True)
     # Save to file
     outputname = filename_to_outputname(filename, output_extension=output_extension)
     plt.savefig(fname=outputname)
@@ -95,11 +116,13 @@ def draw_graph_to_file(G, color_map, filename, output_extension = None):
 def handle_graph(d, n, types_filter, resource_to_type, filename, output_extension = None, validator = None):
     G = translate_dictionary_to_graph(d, n)
     if validator:
-        is_valid = validator(G, resource_to_type)
+        error_nodes = validator(G, resource_to_type)
+        is_valid = len(error_nodes) == 0
         print(f"{bcolors.OKGREEN if is_valid else bcolors.FAIL} {filename} {is_valid} {bcolors.ENDC}")
     filter_by_type(G, types_filter)
-    color_map = create_color_map(G, resource_to_type)
-    draw_graph_to_file(G, color_map, filename, output_extension)
+    labels = {}
+    color_map = create_color_map(G, resource_to_type, error_nodes, labels)
+    draw_graph_to_file(G, color_map, filename, labels, output_extension)
 
 def extract_dependancies(raw_dependancies):
     dependencies = []
@@ -136,21 +159,8 @@ def template_to_graph(graph_name, json_content, types_filter=None):
 
 TYPES_FILTER = set() # set( ['Principal'] ) # set()
 
-def check(G, resource_to_type):
-    is_db_to_attached       = False
-    is_attached_to_cluster  = False
-    for start_node in G:
-        for end_node in G[start_node]:
-            if resource_to_type[start_node] == 'Microsoft.Kusto/Clusters/AttachedDatabaseConfigurations' and \
-               resource_to_type[end_node] == 'Microsoft.Kusto/Clusters':
-                is_attached_to_cluster = True
-            if resource_to_type[start_node] == 'Microsoft.Kusto/Clusters/Databases' and \
-               resource_to_type[end_node] == 'Microsoft.Kusto/Clusters/AttachedDatabaseConfigurations':
-                is_db_to_attached = True
-    return is_attached_to_cluster and is_db_to_attached
-
 if __name__ == "__main__":
-    filename = FILENAME
+    filename = "bad.json" # FILENAME
     with open(filename) as f:
         json_content    = json.load(f)
     template_to_graph(filename, json_content, TYPES_FILTER)
