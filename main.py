@@ -168,10 +168,11 @@ def json_handler(filename):
 
 def csv_handler(filename):
     import csv
-    with open('results.csv', newline='') as csvfile:
+    # Expecting structure: Timestamp,GUID,ArmTemplate
+    with open(filename, newline='') as csvfile:
         for row in csv.reader(csvfile, delimiter=','):
-            Timestamp, RAID = row[0], row[1]
-            graph_name = f'{Timestamp}+{RAID}'
+            Timestamp, GUID = row[0], row[1]
+            graph_name = f'{Timestamp}+{GUID}'
             json_content = json.loads(row[2])
             template_to_graph(graph_name, json_content, types_filter=TYPES_FILTER)
 
