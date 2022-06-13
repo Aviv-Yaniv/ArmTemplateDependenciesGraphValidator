@@ -1,5 +1,7 @@
 import json
+import os
 import pathlib
+import sys
 from collections import defaultdict
 import random
 import networkx as nx
@@ -159,15 +161,30 @@ def template_to_graph(graph_name, json_content, types_filter=None):
 
 TYPES_FILTER = set() # set( ['Principal'] ) # set()
 
-if __name__ == "__main__":
-    filename = "bad.json" # FILENAME
+def json_handler(filename):
     with open(filename) as f:
         json_content    = json.load(f)
     template_to_graph(filename, json_content, TYPES_FILTER)
-    # import csv
-    # with open('results.csv', newline='') as csvfile:
-    #     for row in csv.reader(csvfile, delimiter=','):
-    #         Timestamp, RAID = row[0], row[1]
-    #         graph_name = f'{Timestamp}+{RAID}'
-    #         json_content = json.loads(row[2])
-    #         template_to_graph(graph_name, json_content, types_filter=TYPES_FILTER)
+
+def csv_handler(filename):
+    import csv
+    with open('results.csv', newline='') as csvfile:
+        for row in csv.reader(csvfile, delimiter=','):
+            Timestamp, RAID = row[0], row[1]
+            graph_name = f'{Timestamp}+{RAID}'
+            json_content = json.loads(row[2])
+            template_to_graph(graph_name, json_content, types_filter=TYPES_FILTER)
+
+type_to_handler = \
+    {
+        ".json"  : json_handler,
+        ".csv"   : csv_handler,
+    }
+
+def classify_file_to_type(filename):
+    return os.path.splitext(filename)[1]
+
+if __name__ == "__main__":
+    filename = sys.argv[1] if len(sys.argv) > 1 else FILENAME
+    type_handler = type_to_handler[classify_file_to_type(filename)]
+    type_handler(filename)
