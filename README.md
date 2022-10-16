@@ -1,4 +1,4 @@
-# ArmTemplateDependenciesGraphValidator
+# ARM Template Dependencies Graph Validator
 Converts an ARM Template dependencies to a directed Graph and validates it
 
 ## How to Run?
